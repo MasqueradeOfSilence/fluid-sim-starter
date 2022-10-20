@@ -252,7 +252,8 @@ void MacGrid::applyExternalForces(double t, double gravity)
 			else
 			{
 				n = this->cellAt(x, y - 1);
-				if(n != NULL and n->type() == FLUID)
+				// Not sure why the original repo had "and" instead of "&&"
+				if(n != NULL && n->type() == FLUID)
 					cell->u()[1] += vg;
 			}
 		}

@@ -3,12 +3,13 @@
 // Author      : Sean Flynn
 // Version     :
 // Copyright   : Your copyright notice
-// Description : Hello World in C++, Ansi-style
+// Description : 2D fluid simulator in C++, Ansi-style
 //============================================================================
 
 #include <iostream>
 using namespace std;
 
+// vcpkg install eigen3:x64-windows
 #include <eigen3/Eigen/Sparse>
 
 #include "Simulator.h"
