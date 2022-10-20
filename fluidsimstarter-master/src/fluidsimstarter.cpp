@@ -1,7 +1,7 @@
 //============================================================================
 // Name        : fluidsimstarter.cpp
 // Author      : Sean Flynn
-// Version     :
+// Version     : 1.0
 // Copyright   : Your copyright notice
 // Description : 2D fluid simulator in C++, Ansi-style
 //============================================================================
