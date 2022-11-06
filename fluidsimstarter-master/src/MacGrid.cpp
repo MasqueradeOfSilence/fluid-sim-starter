@@ -268,11 +268,51 @@ void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 	Eigen::ConjugateGradient<Eigen::SparseMatrix<double> > cg;
 	cg.compute(*this->_A_);
 	*this->_p_ = cg.solve(*this->_b_);
+	double h = 1;
+
 }
 
 void MacGrid::applyPressure(double t, double fluidDensity)
 {
-	cout << "applyPressure: NOT IMPLEMENTED" << endl;
+	// It is only applied to velocity components in u that border fluid cells, but not solid cells. 
+	cout << "applyPressure: CUSTOM IMPLEMENTATION" << endl;
+	GridCell* cell;
+	Eigen::Vector2d velocity;
+	for (int i = 0; i < _width_; ++i)
+	{
+		for (int j = 0; j < _height_; ++j)
+		{
+			cell = this->cellAt(i, j);
+			if (cell == NULL || cell->type() == SOLID || cell->type() == AIR)
+			{
+				continue;
+			}
+			double density = fluidDensity;
+			// do I need to check neighbors here? for fluid vs. solid? 
+			// the cell's u attribute stores velocity. 
+			double h = 1.0;
+			this->getVelocity(i, j, velocity);
+			double factor = t / (density * h);
+			// what index to use? don't think this is correct. plus we need the actual gradient
+			/*
+			*	ask some questions on how to implement this 
+			*		-> is this gradient already calculated somewhere? 
+			*		-> is _p_ the correct variable for equation 4?
+			*		-> don't understand the wording around which cells this should be computed for
+			*		-> what index do I use for pressure? I don't think i will work
+			*/
+			// find real index
+			double pressure = (*this->_p_)[1];
+			// to be implemented
+			double pressureGradientUX = pressure;
+			double pressureGradientUY = 0;
+			double pressureGradientUZ = 0;
+			// equation 4
+			//cell->u()[0] = cell->u()[0] - (factor * pressureGradientUX);
+			//cell->u()[1] = cell->u()[1] - (factor * pressureGradientUY);
+			//cell->u()[2] = cell->u()[2] - (factor * pressureGradientUZ);
+		}
+	}
 }
 
 double MacGrid::getDivergence(int x, int y)
@@ -468,8 +508,8 @@ void MacGrid::serialize(const string path)
 			cell = this->_cells_[x][y];
 			u = cell->u();
 			f << pos[0] << " " << pos[1] << " " << u[0] << " " << u[1] << " " <<
-					this->cellSize() << " " << index++ << " " << cell->type() << " " <<
-					cell->layer() << " " << cell->p() << "\n";
+			this->cellSize() << " " << index++ << " " << cell->type() << " " <<
+			cell->layer() << " " << cell->p() << "\n";
 			pos[0] += this->cellSize();
 		}
 		pos[1] += this->cellSize();
@@ -492,24 +532,24 @@ double MacGrid::getInterpolatedValue(double x, double y, int index) const
 	this->getCellUComponents(i, j, index, vels);
 
 	return weights[0] * vels[0] +
-		   weights[1] * vels[1] +
-		   weights[2] * vels[2] +
-		   weights[3] * vels[3];
+		weights[1] * vels[1] +
+		weights[2] * vels[2] +
+		weights[3] * vels[3];
 }
 
 void MacGrid::getInterpWeights(double x, double y, int i, int j, double* result) const
 {
-    result[0] = (i + 1 - x) * (j + 1 - y);
-    result[1] = (x - i) * (j + 1 - y);
-    result[2] = (i + 1 - x) * (y - j);
-    result[3] = (x - i) * (y - j);
+	result[0] = (i + 1 - x) * (j + 1 - y);
+	result[1] = (x - i) * (j + 1 - y);
+	result[2] = (i + 1 - x) * (y - j);
+	result[3] = (x - i) * (y - j);
 }
 
 double MacGrid::getCellU(int i, int j, int index) const
 {
-	GridCell *cell = this->cellAt(i, j);
+	GridCell* cell = this->cellAt(i, j);
 
-	if(cell == NULL)
+	if (cell == NULL)
 		return NON_EXISTENT_VEL;
 	else
 		return cell->u()[index];
@@ -527,12 +567,12 @@ int MacGrid::relabelFluidCells(void)
 {
 	int cellId = 0;
 	GridCell* cell;
-	for(int x = 0; x < this->_width_; ++x)
+	for (int x = 0; x < this->_width_; ++x)
 	{
-		for(int y = 0; y < this->_height_; ++y)
+		for (int y = 0; y < this->_height_; ++y)
 		{
 			cell = this->cellAt(x, y);
-			if(cell->type() == FLUID)
+			if (cell->type() == FLUID)
 				cell->setId(cellId++);
 		}
 	}
@@ -542,5 +582,45 @@ int MacGrid::relabelFluidCells(void)
 
 void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 {
-	cout << "buildPressureMatrix: NOT IMPLEMENTED" << endl;
+	cout << "buildPressureMatrix: CUSTOM IMPLEMENTATION" << endl;
+	GridCell* cell, * neighbor;
+	GridCell* neighbors[4];
+	int cellNumber = 0;
+	for (int i = 0; i < this->_width_; ++i)
+	{
+		for (int j = 0; j < this->_height_; ++j)
+		{
+			cell = this->cellAt(i, j);
+			if (cell == NULL || cell->type() != FLUID)
+			{
+				continue;
+			}
+			// After calling this, the result will be stored in neighbors
+			this->getNeighbors(i, j, neighbors);
+			int numFluidNeighbors = 0;
+			int numAirNeighbors = 0;
+			// Count number of fluid and air neighbors
+			for (int n = 0; n < 4; ++n)
+			{
+				neighbor = neighbors[n];
+				if (neighbor != NULL && neighbor->type() == FLUID)
+				{
+					numFluidNeighbors++;
+				}
+				else if (neighbor != NULL && neighbor->type() == AIR)
+				{
+					numAirNeighbors++;
+				}
+			}
+			// it does not like this
+			//this->_A_->insert(cellNumber, numFluidNeighbors) = 1;
+			//this->_A_->insert(cellNumber, cellNumber) = -numFluidNeighbors;
+			cellNumber++;
+			// Compute b
+			int cellWidth = 1;
+			// dereference
+			(*this->_b_)[cellNumber] = (double)((((fluidDensity * cellWidth) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
+		}
+		//cout << "finished row" << endl;
+	}
 }
