@@ -583,6 +583,8 @@ int MacGrid::relabelFluidCells(void)
 void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 {
 	cout << "buildPressureMatrix: CUSTOM IMPLEMENTATION" << endl;
+	// We need to give the cells IDs so that they will work properly in Eigen
+	this->relabelFluidCells();
 	GridCell* cell, * neighbor;
 	GridCell* neighbors[4];
 	int cellNumber = 0;
@@ -612,7 +614,7 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 					numAirNeighbors++;
 				}
 			}
-			// it does not like this
+			// TODO: instead of cellNumber, use the cellId -- it's computted for you -- and make sure you're doing things inside of the correct loop.
 			//this->_A_->insert(cellNumber, numFluidNeighbors) = 1;
 			//this->_A_->insert(cellNumber, cellNumber) = -numFluidNeighbors;
 			cellNumber++;
