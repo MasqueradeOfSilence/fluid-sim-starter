@@ -587,7 +587,6 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 	this->relabelFluidCells();
 	GridCell* cell, * neighbor;
 	GridCell* neighbors[4];
-	int cellNumber = 0;
 	for (int i = 0; i < this->_width_; ++i)
 	{
 		for (int j = 0; j < this->_height_; ++j)
@@ -614,15 +613,11 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 					numAirNeighbors++;
 				}
 			}
-			// TODO: instead of cellNumber, use the cellId -- it's computted for you -- and make sure you're doing things inside of the correct loop.
-			//this->_A_->insert(cellNumber, numFluidNeighbors) = 1;
-			//this->_A_->insert(cellNumber, cellNumber) = -numFluidNeighbors;
-			cellNumber++;
-			// Compute b
-			int cellWidth = 1;
+			this->_A_->coeffRef(cell->id(), numFluidNeighbors) = 1;
+			this->_A_->coeffRef(cell->id(), cell->id()) = -numFluidNeighbors;
+			int cellWidth = 1; // TODO: check for h variable
 			// dereference
-			(*this->_b_)[cellNumber] = (double)((((fluidDensity * cellWidth) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
+			(*this->_b_)[cell->id()] = (double)((((fluidDensity * cellWidth) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
 		}
-		//cout << "finished row" << endl;
 	}
 }
