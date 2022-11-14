@@ -8,6 +8,7 @@
 #include "MacGrid.h"
 
 const double NON_EXISTENT_VEL = 0.0;
+using namespace std;
 
 MacGrid::MacGrid(int width, int height, int cellSize) :
 	_width_(width), _height_(height), _cellSize_(cellSize)
@@ -268,49 +269,67 @@ void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 	Eigen::ConjugateGradient<Eigen::SparseMatrix<double> > cg;
 	cg.compute(*this->_A_);
 	*this->_p_ = cg.solve(*this->_b_);
+	//cout << "b" << *this->_b_ << endl;
+	//cout << "p" << *this->_p_ << endl;
+	//system("pause");
+	// size = 338
 	double h = 1;
 
 }
 
+/*
+	Apply Pressure: Built from pseudocode on page 71 of Fluid Simulation for Computer Graphics
+	-> Section 5.1, Figure 5.2
+*/
 void MacGrid::applyPressure(double t, double fluidDensity)
 {
-	// It is only applied to velocity components in u that border fluid cells, but not solid cells. 
-	cout << "applyPressure: CUSTOM IMPLEMENTATION" << endl;
+	cout << "applying pressure" << endl;
+	//cout << "what is this: " << (_p_)[0] << endl;
+	//cout << "and " << (_b_)[0] << endl;
+	//system("pause");
 	GridCell* cell;
-	Eigen::Vector2d velocity;
+	GridCell* leftNeighbor;
+	GridCell* upNeighbor;
+	GridCell* neighbors[4];
+	// may need to compute this, setting to 1 for now
+	double dx = 1.0;
+	double scale = t / (fluidDensity * dx);
 	for (int i = 0; i < _width_; ++i)
 	{
 		for (int j = 0; j < _height_; ++j)
 		{
 			cell = this->cellAt(i, j);
-			if (cell == NULL || cell->type() == SOLID || cell->type() == AIR)
+			this->getNeighbors(i, j, neighbors);
+			leftNeighbor = neighbors[0];
+			upNeighbor = neighbors[1];
+			if (leftNeighbor != NULL && leftNeighbor->type() == AIR || cell->type() == AIR)
 			{
-				continue;
+				// atmP of 1.0
+				cell->u()[0] -= scale;
 			}
-			double density = fluidDensity;
-			// do I need to check neighbors here? for fluid vs. solid? 
-			// the cell's u attribute stores velocity. 
-			double h = 1.0;
-			this->getVelocity(i, j, velocity);
-			double factor = t / (density * h);
-			// what index to use? don't think this is correct. plus we need the actual gradient
-			/*
-			*	ask some questions on how to implement this 
-			*		-> is this gradient already calculated somewhere? 
-			*		-> is _p_ the correct variable for equation 4?
-			*		-> don't understand the wording around which cells this should be computed for
-			*		-> what index do I use for pressure? I don't think i will work
-			*/
-			// find real index
-			double pressure = (*this->_p_)[1];
-			// to be implemented
-			double pressureGradientUX = pressure;
-			double pressureGradientUY = 0;
-			double pressureGradientUZ = 0;
-			// equation 4
-			//cell->u()[0] = cell->u()[0] - (factor * pressureGradientUX);
-			//cell->u()[1] = cell->u()[1] - (factor * pressureGradientUY);
-			//cell->u()[2] = cell->u()[2] - (factor * pressureGradientUZ);
+			else if (leftNeighbor != NULL && leftNeighbor->type() == FLUID || cell->type() == FLUID)
+			{
+				// proofread formula
+				if (leftNeighbor != NULL && leftNeighbor->id() != NULL)
+				{
+					cell->u()[0] -= scale * ((*_p_)[cell->id()] - (*_p_)[leftNeighbor->id()]);
+				}
+			}
+			if (upNeighbor != NULL && upNeighbor->type() == AIR || cell->type() == AIR)
+			{
+				// atmP of 1.0
+				cell->u()[1] -= scale;
+			}
+			if (upNeighbor != NULL && upNeighbor->type() == FLUID || cell->type() == FLUID)
+			{
+				if (upNeighbor != NULL && upNeighbor->id() != NULL)
+				{
+					cell->u()[1] -= scale * ((*_p_)[cell->id()] - (*_p_)[upNeighbor->id()]);
+				}
+			}
+			//cout << "cell u: " << cell->u() << endl;
+			//cout << "p at cell id: " << (*_p_)[cell->id()] << endl;
+
 		}
 	}
 }
@@ -594,6 +613,7 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 			cell = this->cellAt(i, j);
 			if (cell == NULL || cell->type() != FLUID)
 			{
+				/*cout << "type: " << cell->type() << endl;*/
 				continue;
 			}
 			// After calling this, the result will be stored in neighbors
@@ -615,9 +635,12 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 			}
 			this->_A_->coeffRef(cell->id(), numFluidNeighbors) = 1;
 			this->_A_->coeffRef(cell->id(), cell->id()) = -numFluidNeighbors;
-			int cellWidth = 1; // TODO: check for h variable
+			int cellWidth = 1; // this is h
 			// dereference
-			(*this->_b_)[cell->id()] = (double)((((fluidDensity * cellWidth) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
+			this->_b_->coeffRef(cell->id()) = (double)((((fluidDensity * cellWidth) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
+			// seems like it fills it in, except when we don't have default values
+			cout << "what is this: " << (double)((((fluidDensity * cellWidth) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP)) << endl;
+			cout << "and this: " << this->_b_->coeffRef(cell->id()) << endl;
 		}
 	}
 }
