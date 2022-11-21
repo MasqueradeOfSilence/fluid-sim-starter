@@ -637,23 +637,30 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 			}
 			// After calling this, the result will be stored in neighbors
 			this->getNeighbors(i, j, neighbors);
-			int numFluidNeighbors = 0;
+			//int numFluidNeighbors = 0;
 			int numAirNeighbors = 0;
+			int numNonSolidNeighbors = 0;
 			// Count number of fluid and air neighbors
 			for (int n = 0; n < 4; ++n)
 			{
 				neighbor = neighbors[n];
+				if (neighbor == NULL || (neighbor->type() != SOLID && neighbor->type() != UNUSED))
+				{
+					numNonSolidNeighbors++;
+				}
 				if (neighbor != NULL && neighbor->type() == FLUID)
 				{
-					numFluidNeighbors++;
+					//numFluidNeighbors++;
+					this->_A_->coeffRef(cell->id(), neighbor->id()) = 1;
 				}
 				else if (neighbor != NULL && neighbor->type() == AIR)
 				{
 					numAirNeighbors++;
 				}
 			}
-			this->_A_->coeffRef(cell->id(), numFluidNeighbors) = 1;
-			this->_A_->coeffRef(cell->id(), cell->id()) = -numFluidNeighbors;
+			//this->_A_->coeffRef(cell->id(), numFluidNeighbors) = 1;
+			this->_A_->coeffRef(cell->id(), cell->id()) = -numNonSolidNeighbors;
+			// cell height should be set in constructor, set this. while it should be 1, we don't want to hardcode it.
 			int cellWidth = 1; // this is h
 			this->_b_->coeffRef(cell->id()) = (double)((((fluidDensity * cellWidth) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
 		}
