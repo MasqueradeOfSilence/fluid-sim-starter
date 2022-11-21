@@ -7,9 +7,10 @@
 
 #include "Particle.h"
 
+
 Particle::Particle(const double x, const double y) : _pos_(x, y)
 {
-
+	
 }
 
 Particle::~Particle()

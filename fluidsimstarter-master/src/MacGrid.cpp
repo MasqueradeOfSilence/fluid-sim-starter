@@ -6,6 +6,7 @@
  */
 
 #include "MacGrid.h"
+#include <math.h>
 
 const double NON_EXISTENT_VEL = 0.0;
 using namespace std;
@@ -190,10 +191,8 @@ void MacGrid::advectVelocity(double t)
 							    nt, prevX);
 			this->traceParticle(x * this->_cellSize_ + this->_halfSize_, y * this->_cellSize_,
 								nt, prevY);
-
 			this->getVelocity(prevX[0], prevX[1], prevUX);
 			this->getVelocity(prevY[0], prevY[1], prevUY);
-
 			cell->updateTempU(prevUX[0], prevUY[1]);
 		}
 	}
@@ -203,7 +202,8 @@ void MacGrid::advectVelocity(double t)
 
 void MacGrid::traceParticle(double x, double y, double t, Eigen::Vector2d &result)
 {
-
+	// why are these sometimes NaN?
+	//cout << "traceParticle: Here is x: " << x << " and here is y: " << y << endl;
 	//x and y are in world space, not grid space
 
 	Eigen::Vector2d v;
@@ -264,15 +264,25 @@ void MacGrid::applyExternalForces(double t, double gravity)
 void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 {
 	this->buildPressureMatrix(t, fluidDensity, atmP);
-
 	//use conjugate gradient for the matrix solve
 	Eigen::ConjugateGradient<Eigen::SparseMatrix<double> > cg;
 	cg.compute(*this->_A_);
+	for (int i = 0; i < (*this->_b_).size(); i++)
+	{
+		if (((*this->_b_).coeffRef(i)) < 0 || ((*this->_b_).coeffRef(i)) > 4)
+		{
+			cout << "index replace: " << i << endl;
+			// if Bs are initialized to zero, then they will immediately go negative due to that subtraction. is this expected?
+			cout << "Value to replace: " << (*this->_b_).coeffRef(i) << endl;
+			// this artificial fix eliminates NaNs, but...I don't think it fixes the real issues.
+			(*this->_b_)[i] = 0;
+			system("pause");
+		}
+	}
+	// we eliminated weird b-values
+	//cout << "final b" << *this->_b_ << endl;
 	*this->_p_ = cg.solve(*this->_b_);
-	//cout << "b" << *this->_b_ << endl;
-	//cout << "p" << *this->_p_ << endl;
-	//system("pause");
-	// size = 338
+	//cout << "p after cg.solve" << *this->_p_ << endl;
 	double h = 1;
 
 }
@@ -284,9 +294,6 @@ void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 void MacGrid::applyPressure(double t, double fluidDensity)
 {
 	cout << "applying pressure" << endl;
-	//cout << "what is this: " << (_p_)[0] << endl;
-	//cout << "and " << (_b_)[0] << endl;
-	//system("pause");
 	GridCell* cell;
 	GridCell* leftNeighbor;
 	GridCell* upNeighbor;
@@ -294,11 +301,13 @@ void MacGrid::applyPressure(double t, double fluidDensity)
 	// may need to compute this, setting to 1 for now
 	double dx = 1.0;
 	double scale = t / (fluidDensity * dx);
+	Eigen::Vector2d previous;
 	for (int i = 0; i < _width_; ++i)
 	{
 		for (int j = 0; j < _height_; ++j)
 		{
 			cell = this->cellAt(i, j);
+			previous = cell->u();
 			this->getNeighbors(i, j, neighbors);
 			leftNeighbor = neighbors[0];
 			upNeighbor = neighbors[1];
@@ -312,7 +321,7 @@ void MacGrid::applyPressure(double t, double fluidDensity)
 				// proofread formula
 				if (leftNeighbor != NULL && leftNeighbor->id() != NULL)
 				{
-					cell->u()[0] -= scale * ((*_p_)[cell->id()] - (*_p_)[leftNeighbor->id()]);
+					cell->u()[0] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(leftNeighbor->id()));
 				}
 			}
 			if (upNeighbor != NULL && upNeighbor->type() == AIR || cell->type() == AIR)
@@ -324,11 +333,21 @@ void MacGrid::applyPressure(double t, double fluidDensity)
 			{
 				if (upNeighbor != NULL && upNeighbor->id() != NULL)
 				{
-					cell->u()[1] -= scale * ((*_p_)[cell->id()] - (*_p_)[upNeighbor->id()]);
+					cell->u()[1] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(upNeighbor->id()));
 				}
 			}
-			//cout << "cell u: " << cell->u() << endl;
-			//cout << "p at cell id: " << (*_p_)[cell->id()] << endl;
+			if (cell->u()[1] < -100)
+			{
+				// with the patch, it seems that this won't get executed
+				cout << "cell u after: " << cell->u() << endl;
+				cout << "prev: " << previous << endl;
+				cout << "Did it get in? " << (upNeighbor != NULL && upNeighbor->type() == FLUID || cell->type() == FLUID) << endl; // it did
+				cout << "Outputs 1 if up neighbor has ID: " << (upNeighbor->id() != NULL) << endl;
+				cout << "cell Id: " << cell->id() << endl;
+				cout << "p: " << *this->_p_ << endl;
+				cout << this->_p_->coeffRef(cell->id()) << endl;
+				cout << this->_p_->coeffRef(upNeighbor->id()) << endl;
+			}
 
 		}
 	}
@@ -606,6 +625,7 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 	this->relabelFluidCells();
 	GridCell* cell, * neighbor;
 	GridCell* neighbors[4];
+	// 13x26 with b size 338
 	for (int i = 0; i < this->_width_; ++i)
 	{
 		for (int j = 0; j < this->_height_; ++j)
@@ -613,7 +633,6 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 			cell = this->cellAt(i, j);
 			if (cell == NULL || cell->type() != FLUID)
 			{
-				/*cout << "type: " << cell->type() << endl;*/
 				continue;
 			}
 			// After calling this, the result will be stored in neighbors
@@ -636,11 +655,7 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 			this->_A_->coeffRef(cell->id(), numFluidNeighbors) = 1;
 			this->_A_->coeffRef(cell->id(), cell->id()) = -numFluidNeighbors;
 			int cellWidth = 1; // this is h
-			// dereference
 			this->_b_->coeffRef(cell->id()) = (double)((((fluidDensity * cellWidth) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
-			// seems like it fills it in, except when we don't have default values
-			cout << "what is this: " << (double)((((fluidDensity * cellWidth) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP)) << endl;
-			cout << "and this: " << this->_b_->coeffRef(cell->id()) << endl;
 		}
 	}
 }

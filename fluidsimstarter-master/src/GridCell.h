@@ -9,6 +9,8 @@
 #define GRIDCELL_H_
 
 #include <eigen3/Eigen/Sparse>
+#include <iostream>
+using namespace std;
 
 enum CellType {FLUID, AIR, SOLID, UNUSED};
 
@@ -34,8 +36,7 @@ public:
 	void setTempU(Eigen::Vector2d tempU) {_tempU_[0] = tempU[0]; _tempU_[1] = tempU[1];};
 	void updateTempU(double x, double y) {_tempU_[0] = x; _tempU_[1] = y;};
 	void setP(const double p) {_p_ = p;};
-
-	void swapTempVelocity(void) {_u_[0] = _tempU_[0]; _u_[1] = _tempU_[1];};
+	void swapTempVelocity(void) { _u_[0] = _tempU_[0]; _u_[1] = _tempU_[1]; };
 
 private:
 	CellType _type_;

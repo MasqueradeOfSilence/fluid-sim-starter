@@ -41,21 +41,25 @@ void Simulator::run(int frames)
 	for(int frame = 0; frame <= frames; ++frame)
 	{
 		cout << "Current frame: " << frame << "-----------------------------------------" << endl;
-		if(frame < EMIT_FRAMES)
+		if (frame < EMIT_FRAMES)
 			this->addParticles(PARTICLES_PER_FRAME);
 
 		this->serializeGrids(frame, GRIDS_PATH);
 		this->serializeParticles(frame, PARTICLES_PATH);
 
+		if (frame == 2)
+		{
+			cout << "breakpoint" << endl;
+		}
 		while(curTime < frame)
 		{
 			cout << "\tcurrent time: " << curTime << endl;
-
 			maxU = max(this->_grid_->getMaxU(), this->_grid_->getMinCellSize());
 			cout << "\t\tmaxU: " << maxU << endl;
 			ts = this->_grid_->getMinCellSize() / maxU;
 			ts = min(frame - curTime, ts);
 			cout << "\t\ttimestep: " << ts << endl;
+			// something funky with U starts happening, right here...
 			this->advectParticles(ts);
 
 			this->_grid_->updateBuffer(this->_particles_, 1);
@@ -92,12 +96,14 @@ void Simulator::advectParticles(double t)
 {
 	Particle *p;
 	Eigen::Vector2d newPos, u;
+	cout << "particles size: " << this->_particles_.size() << endl;
 	for(int i = 0; i < this->_particles_.size(); ++i)
 	{
 		p = this->_particles_[i];
 		this->_grid_->traceParticle(p->pos()[0], p->pos()[1], t, newPos);
 		p->updatePos(newPos[0], newPos[1]);
 	}
+	int bogus = 0;
 }
 
 void Simulator::serializeGrids(int frame, const string path)
