@@ -267,20 +267,20 @@ void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 	//use conjugate gradient for the matrix solve
 	Eigen::ConjugateGradient<Eigen::SparseMatrix<double> > cg;
 	cg.compute(*this->_A_);
-	for (int i = 0; i < (*this->_b_).size(); i++)
-	{
-		if (((*this->_b_).coeffRef(i)) < 0 || ((*this->_b_).coeffRef(i)) > 4)
-		{
-			cout << "index replace: " << i << endl;
-			// if Bs are initialized to zero, then they will immediately go negative due to that subtraction. is this expected?
-			cout << "Value to replace: " << (*this->_b_).coeffRef(i) << endl;
-			// this artificial fix eliminates NaNs, but...I don't think it fixes the real issues.
-			(*this->_b_)[i] = 0;
-			system("pause");
-		}
-	}
-	// we eliminated weird b-values
-	//cout << "final b" << *this->_b_ << endl;
+	////for (int i = 0; i < (*this->_b_).size(); i++)
+	////{
+	////	if (((*this->_b_).coeffRef(i)) < 0 || ((*this->_b_).coeffRef(i)) > 4)
+	////	{
+	////		cout << "index replace: " << i << endl;
+	////		// if Bs are initialized to zero, then they will immediately go negative due to that subtraction. is this expected?
+	////		cout << "Value to replace: " << (*this->_b_).coeffRef(i) << endl;
+	////		// this artificial fix eliminates NaNs, but...I don't think it fixes the real issues.
+	////		(*this->_b_)[i] = 0;
+	////		system("pause");
+	////	}
+	//}
+	//// we eliminated weird b-values
+	////cout << "final b" << *this->_b_ << endl;
 	*this->_p_ = cg.solve(*this->_b_);
 	//cout << "p after cg.solve" << *this->_p_ << endl;
 	double h = 1;
@@ -290,6 +290,14 @@ void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 /*
 	Apply Pressure: Built from pseudocode on page 71 of Fluid Simulation for Computer Graphics
 	-> Section 5.1, Figure 5.2
+
+	CASES:
+
+	Fluid | Air
+	Air | Fluid
+	Fluid | Fluid
+
+	ask Sam about UP and DOWN cases
 */
 void MacGrid::applyPressure(double t, double fluidDensity)
 {
@@ -297,6 +305,8 @@ void MacGrid::applyPressure(double t, double fluidDensity)
 	GridCell* cell;
 	GridCell* leftNeighbor;
 	GridCell* upNeighbor;
+	GridCell* rightNeighbor;
+	GridCell* downNeighbor;
 	GridCell* neighbors[4];
 	// may need to compute this, setting to 1 for now
 	double dx = 1.0;
@@ -311,43 +321,52 @@ void MacGrid::applyPressure(double t, double fluidDensity)
 			this->getNeighbors(i, j, neighbors);
 			leftNeighbor = neighbors[0];
 			upNeighbor = neighbors[1];
-			if (leftNeighbor != NULL && leftNeighbor->type() == AIR || cell->type() == AIR)
+			rightNeighbor = neighbors[2];
+			downNeighbor = neighbors[3];
+
+			// CASE: Fluid | Air
+			if (rightNeighbor != NULL && rightNeighbor->type() == AIR)
 			{
-				// atmP of 1.0
-				cell->u()[0] -= scale;
+				// where is atmp?
+				cell->u()[0] -= ();
 			}
-			else if (leftNeighbor != NULL && leftNeighbor->type() == FLUID || cell->type() == FLUID)
-			{
-				// proofread formula
-				if (leftNeighbor != NULL && leftNeighbor->id() != NULL)
-				{
-					cell->u()[0] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(leftNeighbor->id()));
-				}
-			}
-			if (upNeighbor != NULL && upNeighbor->type() == AIR || cell->type() == AIR)
-			{
-				// atmP of 1.0
-				cell->u()[1] -= scale;
-			}
-			if (upNeighbor != NULL && upNeighbor->type() == FLUID || cell->type() == FLUID)
-			{
-				if (upNeighbor != NULL && upNeighbor->id() != NULL)
-				{
-					cell->u()[1] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(upNeighbor->id()));
-				}
-			}
-			if (cell->u()[1] < -100)
-			{
-				// with the patch, it seems that this won't get executed
-				cout << "cell u after: " << cell->u() << endl;
-				cout << "prev: " << previous << endl;
-				cout << "Did it get in? " << (upNeighbor != NULL && upNeighbor->type() == FLUID || cell->type() == FLUID) << endl; // it did
-				cout << "Outputs 1 if up neighbor has ID: " << (upNeighbor->id() != NULL) << endl;
-				cout << "cell Id: " << cell->id() << endl;
-				cout << "p: " << *this->_p_ << endl;
-				cout << this->_p_->coeffRef(cell->id()) << endl;
-				cout << this->_p_->coeffRef(upNeighbor->id()) << endl;
-			}
+			//if (leftNeighbor != NULL && leftNeighbor->type() == AIR || cell->type() == AIR)
+			//{
+			//	// atmP of 1.0
+			//	cell->u()[0] -= scale;
+			//}
+			//else if (leftNeighbor != NULL && leftNeighbor->type() == FLUID || cell->type() == FLUID)
+			//{
+			//	// proofread formula
+			//	if (leftNeighbor != NULL && leftNeighbor->id() != NULL)
+			//	{
+			//		cell->u()[0] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(leftNeighbor->id()));
+			//	}
+			//}
+			//if (upNeighbor != NULL && upNeighbor->type() == AIR || cell->type() == AIR)
+			//{
+			//	// atmP of 1.0
+			//	cell->u()[1] -= scale;
+			//}
+			//if (upNeighbor != NULL && upNeighbor->type() == FLUID || cell->type() == FLUID)
+			//{
+			//	if (upNeighbor != NULL && upNeighbor->id() != NULL)
+			//	{
+			//		cell->u()[1] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(upNeighbor->id()));
+			//	}
+			//}
+			//if (cell->u()[1] < -100)
+			//{
+			//	// with the patch, it seems that this won't get executed
+			//	cout << "cell u after: " << cell->u() << endl;
+			//	cout << "prev: " << previous << endl;
+			//	cout << "Did it get in? " << (upNeighbor != NULL && upNeighbor->type() == FLUID || cell->type() == FLUID) << endl; // it did
+			//	cout << "Outputs 1 if up neighbor has ID: " << (upNeighbor->id() != NULL) << endl;
+			//	cout << "cell Id: " << cell->id() << endl;
+			//	cout << "p: " << *this->_p_ << endl;
+			//	cout << this->_p_->coeffRef(cell->id()) << endl;
+			//	cout << this->_p_->coeffRef(upNeighbor->id()) << endl;
+			//}
 
 		}
 	}
@@ -661,8 +680,8 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 			//this->_A_->coeffRef(cell->id(), numFluidNeighbors) = 1;
 			this->_A_->coeffRef(cell->id(), cell->id()) = -numNonSolidNeighbors;
 			// cell height should be set in constructor, set this. while it should be 1, we don't want to hardcode it.
-			int cellWidth = 1; // this is h
-			this->_b_->coeffRef(cell->id()) = (double)((((fluidDensity * cellWidth) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
+			int voxelSize = this->_cellSize_; // this is h
+			this->_b_->coeffRef(cell->id()) = (double)((((fluidDensity * voxelSize) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
 		}
 	}
 }
