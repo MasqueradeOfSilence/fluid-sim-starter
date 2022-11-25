@@ -4,6 +4,9 @@
 // Version     : 1.0
 // Copyright   : Your copyright notice
 // Description : 2D fluid simulator in C++, Ansi-style
+//
+// How to run me without using an IDE: g++ -o sim *.cpp (inside of the sim directory)
+// ./sim
 //============================================================================
 
 #include <iostream>

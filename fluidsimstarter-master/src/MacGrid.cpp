@@ -297,11 +297,13 @@ void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 	Air | Fluid
 	Fluid | Fluid
 
-	ask Sam about UP and DOWN cases
+	I and J (horizontal and vertical)
 */
-void MacGrid::applyPressure(double t, double fluidDensity)
+void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 {
 	cout << "applying pressure" << endl;
+	cout << "T: " << t << endl;
+	// time is getting set to increasingly small intervals for some reason
 	GridCell* cell;
 	GridCell* leftNeighbor;
 	GridCell* upNeighbor;
@@ -309,7 +311,7 @@ void MacGrid::applyPressure(double t, double fluidDensity)
 	GridCell* downNeighbor;
 	GridCell* neighbors[4];
 	// may need to compute this, setting to 1 for now
-	double dx = 1.0;
+	double dx = this->_cellSize_;
 	double scale = t / (fluidDensity * dx);
 	Eigen::Vector2d previous;
 	for (int i = 0; i < _width_; ++i)
@@ -325,48 +327,25 @@ void MacGrid::applyPressure(double t, double fluidDensity)
 			downNeighbor = neighbors[3];
 
 			// CASE: Fluid | Air
-			if (rightNeighbor != NULL && rightNeighbor->type() == AIR)
+			if (rightNeighbor != NULL && rightNeighbor->type() == AIR && cell->type() == FLUID)
 			{
-				// where is atmp?
-				cell->u()[0] -= ();
+				// scale is jacked up. The denominator is always 1 right now, so is something happening to time?
+				cell->u()[0] -= scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()));
+				cout << "Scale: " << scale << endl;
+				cout << "Time: " << t << endl;
 			}
-			//if (leftNeighbor != NULL && leftNeighbor->type() == AIR || cell->type() == AIR)
-			//{
-			//	// atmP of 1.0
-			//	cell->u()[0] -= scale;
-			//}
-			//else if (leftNeighbor != NULL && leftNeighbor->type() == FLUID || cell->type() == FLUID)
-			//{
-			//	// proofread formula
-			//	if (leftNeighbor != NULL && leftNeighbor->id() != NULL)
-			//	{
-			//		cell->u()[0] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(leftNeighbor->id()));
-			//	}
-			//}
-			//if (upNeighbor != NULL && upNeighbor->type() == AIR || cell->type() == AIR)
-			//{
-			//	// atmP of 1.0
-			//	cell->u()[1] -= scale;
-			//}
-			//if (upNeighbor != NULL && upNeighbor->type() == FLUID || cell->type() == FLUID)
-			//{
-			//	if (upNeighbor != NULL && upNeighbor->id() != NULL)
-			//	{
-			//		cell->u()[1] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(upNeighbor->id()));
-			//	}
-			//}
-			//if (cell->u()[1] < -100)
-			//{
-			//	// with the patch, it seems that this won't get executed
-			//	cout << "cell u after: " << cell->u() << endl;
-			//	cout << "prev: " << previous << endl;
-			//	cout << "Did it get in? " << (upNeighbor != NULL && upNeighbor->type() == FLUID || cell->type() == FLUID) << endl; // it did
-			//	cout << "Outputs 1 if up neighbor has ID: " << (upNeighbor->id() != NULL) << endl;
-			//	cout << "cell Id: " << cell->id() << endl;
-			//	cout << "p: " << *this->_p_ << endl;
-			//	cout << this->_p_->coeffRef(cell->id()) << endl;
-			//	cout << this->_p_->coeffRef(upNeighbor->id()) << endl;
-			//}
+			continue; // remove this
+			// CASE: Air | Fluid
+			if (leftNeighbor != NULL && leftNeighbor->type() == FLUID && cell->type() == AIR)
+			{
+				cell->u()[0] -= scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP);
+			}
+			// CASE: Fluid | Fluid
+			if (rightNeighbor != NULL && rightNeighbor->type() == FLUID && cell->type() == FLUID)
+			{
+				cell->u()[0] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id()));
+			}
+			// J
 
 		}
 	}

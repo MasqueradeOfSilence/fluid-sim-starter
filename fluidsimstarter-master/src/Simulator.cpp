@@ -6,6 +6,7 @@
  */
 
 #include "Simulator.h"
+#include <string>
 
 //gravity constant, one grid cell is one meter square
 const double GRAVITY = -9.8321849378;
@@ -44,8 +45,16 @@ void Simulator::run(int frames)
 		if (frame < EMIT_FRAMES)
 			this->addParticles(PARTICLES_PER_FRAME);
 
-		this->serializeGrids(frame, GRIDS_PATH);
-		this->serializeParticles(frame, PARTICLES_PATH);
+		string grid_path = GRIDS_PATH;
+		#if __APPLE__
+			grid_path = "/Users/Alex/Documents/Alex's Crap/Escuela/MS/Fall_2022/fluid-sim-data/grids/grid.%03d";
+		#endif
+		this->serializeGrids(frame, grid_path);
+		string particle_path = PARTICLES_PATH;
+		#if __APPLE__
+			particle_path = "/Users/Alex/Documents/Alex's Crap/Escuela/MS/Fall_2022/fluid-sim-data/particles/p.%03d";
+		#endif
+		this->serializeParticles(frame, particle_path);
 
 		if (frame == 2)
 		{
@@ -66,7 +75,7 @@ void Simulator::run(int frames)
 			this->_grid_->advectVelocity(ts);
 			this->_grid_->applyExternalForces(ts, g);
 			this->_grid_->solvePressure(ts, FLUID_DENSITY, ATM_PRESSURE);
-			this->_grid_->applyPressure(ts, FLUID_DENSITY);
+			this->_grid_->applyPressure(ts, FLUID_DENSITY, ATM_PRESSURE);
 			this->_grid_->extrapolateVelocity(1);
 			this->_grid_->setSolidVelocities();
 

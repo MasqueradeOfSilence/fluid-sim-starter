@@ -33,7 +33,7 @@ public:
 	virtual void swapTempVelocity(void);
 	virtual void applyExternalForces(double t, double gravity);
 	virtual void solvePressure(double t, double fluidDensity, double atmP);
-	virtual void applyPressure(double t, double fluidDensity);
+	virtual void applyPressure(double t, double fluidDensity, double atmP);
 	virtual double getDivergence(int x, int y);
 	virtual void extrapolateVelocity(int kcfl);
 	virtual void setSolidVelocities(void);
