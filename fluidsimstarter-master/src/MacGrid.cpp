@@ -267,22 +267,7 @@ void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 	//use conjugate gradient for the matrix solve
 	Eigen::ConjugateGradient<Eigen::SparseMatrix<double> > cg;
 	cg.compute(*this->_A_);
-	////for (int i = 0; i < (*this->_b_).size(); i++)
-	////{
-	////	if (((*this->_b_).coeffRef(i)) < 0 || ((*this->_b_).coeffRef(i)) > 4)
-	////	{
-	////		cout << "index replace: " << i << endl;
-	////		// if Bs are initialized to zero, then they will immediately go negative due to that subtraction. is this expected?
-	////		cout << "Value to replace: " << (*this->_b_).coeffRef(i) << endl;
-	////		// this artificial fix eliminates NaNs, but...I don't think it fixes the real issues.
-	////		(*this->_b_)[i] = 0;
-	////		system("pause");
-	////	}
-	//}
-	//// we eliminated weird b-values
-	////cout << "final b" << *this->_b_ << endl;
 	*this->_p_ = cg.solve(*this->_b_);
-	//cout << "p after cg.solve" << *this->_p_ << endl;
 	double h = 1;
 
 }
@@ -302,7 +287,6 @@ void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 {
 	cout << "applying pressure" << endl;
-	cout << "T: " << t << endl;
 	// time is getting set to increasingly small intervals for some reason
 	GridCell* cell;
 	GridCell* leftNeighbor;
@@ -313,6 +297,8 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 	// may need to compute this, setting to 1 for now
 	double dx = this->_cellSize_;
 	double scale = t / (fluidDensity * dx);
+	// scale must be dynamic
+	// scale = this->_p_->size();
 	Eigen::Vector2d previous;
 	for (int i = 0; i < _width_; ++i)
 	{
@@ -330,11 +316,14 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 			if (rightNeighbor != NULL && rightNeighbor->type() == AIR && cell->type() == FLUID)
 			{
 				// scale is jacked up. The denominator is always 1 right now, so is something happening to time?
+				// time and maxU seem to influence each other
 				cell->u()[0] -= scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()));
 				cout << "Scale: " << scale << endl;
 				cout << "Time: " << t << endl;
+				cout << "atmP: " << atmP << endl;
+				cout << "P: " << this->_p_->coeffRef(rightNeighbor->id()) << endl;
+				cout << "End result: " << cell->u()[0] << endl;
 			}
-			continue; // remove this
 			// CASE: Air | Fluid
 			if (leftNeighbor != NULL && leftNeighbor->type() == FLUID && cell->type() == AIR)
 			{
@@ -346,7 +335,9 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 				cell->u()[0] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id()));
 			}
 			// J
-
+			// CASE: Fluid above Air
+			// CASE: Air above Fluid
+			// CASE: Fluid above Fluid
 		}
 	}
 }
@@ -642,7 +633,7 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 			for (int n = 0; n < 4; ++n)
 			{
 				neighbor = neighbors[n];
-				if (neighbor == NULL || (neighbor->type() != SOLID && neighbor->type() != UNUSED))
+				if (neighbor != NULL && neighbor->type() != SOLID && neighbor->type() != UNUSED)
 				{
 					numNonSolidNeighbors++;
 				}
