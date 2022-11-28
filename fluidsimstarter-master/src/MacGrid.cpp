@@ -296,6 +296,7 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 	GridCell* neighbors[4];
 	// may need to compute this, setting to 1 for now
 	double dx = this->_cellSize_;
+	// Note: fluidDensity and other densities are the same, though their variables should be different
 	double scale = t / (fluidDensity * dx);
 	// scale must be dynamic
 	// scale = this->_p_->size();
@@ -321,6 +322,8 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 
 				//cell->updateU(cell->u()[0] - (scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()) ) ), 0.5);
 
+				// what to put for J? do this first
+				// we could set Ux and Uy, then use updateU() only at the end.
 				cell->updateU(cell->u()[0] - (scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()))), 0.5);
 				// next: keep looking at algorithm, try to write it out, and do a piece by hand, understand inputs and outputs
 				cout << "Scale: " << scale << endl;
