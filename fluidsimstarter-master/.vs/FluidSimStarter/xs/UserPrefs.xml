@@ -1,0 +1,32 @@
+﻿<Properties>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.Workbench ActiveDocument="src/MacGrid.cpp">
+    <Files>
+      <File FileName="src/fluidsimstarter.cpp" Line="8" Column="86" />
+      <File FileName="src/GridCell.cpp" Line="10" Column="61" />
+      <File FileName="src/GridCell.h" Line="26" Column="37" />
+      <File FileName="src/MacGrid.cpp" Line="325" Column="93" />
+      <File FileName="src/MacGrid.h" Line="36" Column="71" />
+      <File FileName="src/Particle.cpp" />
+      <File FileName="src/Particle.h" />
+      <File FileName="src/Simulator.cpp" />
+      <File FileName="src/Simulator.h" />
+    </Files>
+    <Pads>
+      <Pad Id="ProjectPad">
+        <State name="__root__">
+          <Node name="FluidSimStarter" expanded="True">
+            <Node name="FluidSimStarter" expanded="True">
+              <Node name="src" expanded="True" />
+            </Node>
+          </Node>
+        </State>
+      </Pad>
+    </Pads>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+  <MultiItemStartupConfigurations />
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug|x64" />
+</Properties>

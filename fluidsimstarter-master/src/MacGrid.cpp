@@ -305,7 +305,6 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 		for (int j = 0; j < _height_; ++j)
 		{
 			cell = this->cellAt(i, j);
-			previous = cell->u();
 			this->getNeighbors(i, j, neighbors);
 			leftNeighbor = neighbors[0];
 			upNeighbor = neighbors[1];
@@ -317,7 +316,13 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 			{
 				// scale is jacked up. The denominator is always 1 right now, so is something happening to time?
 				// time and maxU seem to influence each other
-				cell->u()[0] -= scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()));
+				// It's almost certainly something in here because maxU influences time, which becomes too small, which means divide by 0.
+				//cell->u()[0] -= scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()));
+
+				//cell->updateU(cell->u()[0] - (scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()) ) ), 0.5);
+
+				cell->updateU(cell->u()[0] - (scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()))), 0.5);
+				// next: keep looking at algorithm, try to write it out, and do a piece by hand, understand inputs and outputs
 				cout << "Scale: " << scale << endl;
 				cout << "Time: " << t << endl;
 				cout << "atmP: " << atmP << endl;
@@ -327,12 +332,16 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 			// CASE: Air | Fluid
 			if (leftNeighbor != NULL && leftNeighbor->type() == FLUID && cell->type() == AIR)
 			{
-				cell->u()[0] -= scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP);
+				//cell->u()[0] -= scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP);
+				//cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP)))), 0.5);
+				cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP)), 0.5);
 			}
 			// CASE: Fluid | Fluid
 			if (rightNeighbor != NULL && rightNeighbor->type() == FLUID && cell->type() == FLUID)
 			{
-				cell->u()[0] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id()));
+				//cell->u()[0] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id()));
+				//cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id()))), 0.5);
+				cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id()))), 0.5);
 			}
 			// J
 			// CASE: Fluid above Air
@@ -620,6 +629,7 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 		for (int j = 0; j < this->_height_; ++j)
 		{
 			cell = this->cellAt(i, j);
+			// do I need to remove this?
 			if (cell == NULL || cell->type() != FLUID)
 			{
 				continue;
@@ -651,6 +661,7 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 			this->_A_->coeffRef(cell->id(), cell->id()) = -numNonSolidNeighbors;
 			// cell height should be set in constructor, set this. while it should be 1, we don't want to hardcode it.
 			int voxelSize = this->_cellSize_; // this is h
+			// NaN divide by zero like this t here? 
 			this->_b_->coeffRef(cell->id()) = (double)((((fluidDensity * voxelSize) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
 		}
 	}
