@@ -45,6 +45,7 @@ void Simulator::run(int frames)
 		if (frame < EMIT_FRAMES)
 			this->addParticles(PARTICLES_PER_FRAME);
 
+		// For Macbook coding with g++ compiler
 		string grid_path = GRIDS_PATH;
 		#if __APPLE__
 			grid_path = "/Users/Alex/Documents/Alex's Crap/Escuela/MS/Fall_2022/fluid-sim-data/grids/grid.%03d";
@@ -56,10 +57,6 @@ void Simulator::run(int frames)
 		#endif
 		this->serializeParticles(frame, particle_path);
 
-		if (frame == 2)
-		{
-			cout << "breakpoint" << endl;
-		}
 		while(curTime < frame)
 		{
 			cout << "\tcurrent time: " << curTime << endl;
@@ -68,7 +65,6 @@ void Simulator::run(int frames)
 			ts = this->_grid_->getMinCellSize() / maxU;
 			ts = min(frame - curTime, ts);
 			cout << "\t\ttimestep: " << ts << endl;
-			// something funky with U starts happening, right here...
 			this->advectParticles(ts);
 
 			this->_grid_->updateBuffer(this->_particles_, 1);

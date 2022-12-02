@@ -202,8 +202,6 @@ void MacGrid::advectVelocity(double t)
 
 void MacGrid::traceParticle(double x, double y, double t, Eigen::Vector2d &result)
 {
-	// why are these sometimes NaN?
-	//cout << "traceParticle: Here is x: " << x << " and here is y: " << y << endl;
 	//x and y are in world space, not grid space
 
 	Eigen::Vector2d v;
@@ -286,20 +284,16 @@ void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 */
 void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 {
-	cout << "applying pressure" << endl;
-	// time is getting set to increasingly small intervals for some reason
+	cout << "applying pressure: CUSTOM IMPLEMENTATION" << endl;
 	GridCell* cell;
 	GridCell* leftNeighbor;
 	GridCell* upNeighbor;
 	GridCell* rightNeighbor;
 	GridCell* downNeighbor;
 	GridCell* neighbors[4];
-	// may need to compute this, setting to 1 for now
 	double dx = this->getMinCellSize();
 	// Note: fluidDensity and other densities are the same, though their variables should be different
 	double scale = t / (fluidDensity * dx);
-	// scale must be dynamic
-	// scale = this->_p_->size();
 	Eigen::Vector2d previous;
 	for (int i = 0; i < _width_; ++i)
 	{
@@ -312,44 +306,44 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 			rightNeighbor = neighbors[2];
 			downNeighbor = neighbors[3];
 
+			double ux = cell->u()[0];
+			double uy = cell->u()[1];
+
 			// CASE: Fluid | Air
 			if (rightNeighbor != NULL && rightNeighbor->type() == AIR && cell->type() == FLUID)
 			{
-				// scale is jacked up. The denominator is always 1 right now, so is something happening to time?
-				// time and maxU seem to influence each other
-				// It's almost certainly something in here because maxU influences time, which becomes too small, which means divide by 0.
-				//cell->u()[0] -= scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()));
-
-				//cell->updateU(cell->u()[0] - (scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()) ) ), 0.5);
-
-				// what to put for J? do this first
-				// we could set Ux and Uy, then use updateU() only at the end.
-				cell->updateU(cell->u()[0] - (scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()))), 0.5);
-				// next: keep looking at algorithm, try to write it out, and do a piece by hand, understand inputs and outputs
-				cout << "Scale: " << scale << endl;
-				cout << "Time: " << t << endl;
-				cout << "atmP: " << atmP << endl;
-				cout << "P: " << this->_p_->coeffRef(rightNeighbor->id()) << endl;
-				cout << "End result: " << cell->u()[0] << endl;
+				// we could set Ux and Uy, then use updateU() only at the end. and in this case, make the default just the current U (unchanged).
+				//cell->updateU(cell->u()[0] - (scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()))), 0.5);
+				ux = cell->u()[0] - (scale * (atmP - this->_p_->coeffRef(rightNeighbor->id())));
 			}
 			// CASE: Air | Fluid
-			if (leftNeighbor != NULL && leftNeighbor->type() == FLUID && cell->type() == AIR)
+			else if (leftNeighbor != NULL && leftNeighbor->type() == FLUID && cell->type() == AIR)
 			{
-				//cell->u()[0] -= scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP);
-				//cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP)))), 0.5);
-				cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP)), 0.5);
+				//cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP)), 0.5);
+				ux = cell->u()[0] - (scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP));
 			}
 			// CASE: Fluid | Fluid
-			if (rightNeighbor != NULL && rightNeighbor->type() == FLUID && cell->type() == FLUID)
+			else if (rightNeighbor != NULL && rightNeighbor->type() == FLUID && cell->type() == FLUID)
 			{
-				//cell->u()[0] -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id()));
 				//cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id()))), 0.5);
-				cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id()))), 0.5);
+				ux = cell->u()[0] - (scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id())));
 			}
-			// J
 			// CASE: Fluid above Air
+			if (downNeighbor != NULL && downNeighbor->type() == AIR && cell->type() == FLUID)
+			{
+				uy = cell->u()[1] - (scale * (atmP - this->_p_->coeffRef(downNeighbor->id())));
+			}
 			// CASE: Air above Fluid
+			else if (upNeighbor != NULL && upNeighbor->type() == AIR && cell->type() == FLUID)
+			{
+				uy = cell->u()[1] - (scale * (this->_p_->coeffRef(upNeighbor->id()) - atmP));
+			}
 			// CASE: Fluid above Fluid
+			else if (downNeighbor != NULL && downNeighbor->type() == FLUID && cell->type() == FLUID)
+			{
+				uy = cell->u()[1] - (scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(downNeighbor->id())));
+			}
+			cell->updateU(ux, uy);
 		}
 	}
 }
@@ -632,14 +626,12 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 		for (int j = 0; j < this->_height_; ++j)
 		{
 			cell = this->cellAt(i, j);
-			// do I need to remove this?
 			if (cell == NULL || cell->type() != FLUID)
 			{
 				continue;
 			}
 			// After calling this, the result will be stored in neighbors
 			this->getNeighbors(i, j, neighbors);
-			//int numFluidNeighbors = 0;
 			int numAirNeighbors = 0;
 			int numNonSolidNeighbors = 0;
 			// Count number of fluid and air neighbors
@@ -652,7 +644,6 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 				}
 				if (neighbor != NULL && neighbor->type() == FLUID)
 				{
-					//numFluidNeighbors++;
 					this->_A_->coeffRef(cell->id(), neighbor->id()) = 1;
 				}
 				else if (neighbor != NULL && neighbor->type() == AIR)
@@ -660,11 +651,8 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 					numAirNeighbors++;
 				}
 			}
-			//this->_A_->coeffRef(cell->id(), numFluidNeighbors) = 1;
 			this->_A_->coeffRef(cell->id(), cell->id()) = -numNonSolidNeighbors;
-			// cell height should be set in constructor, set this. while it should be 1, we don't want to hardcode it.
 			int voxelSize = this->getMinCellSize(); // this is h
-			// NaN divide by zero like this t here? 
 			this->_b_->coeffRef(cell->id()) = (double)((((fluidDensity * voxelSize) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
 		}
 	}
