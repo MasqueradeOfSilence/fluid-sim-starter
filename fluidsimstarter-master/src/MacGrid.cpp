@@ -295,7 +295,7 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 	GridCell* downNeighbor;
 	GridCell* neighbors[4];
 	// may need to compute this, setting to 1 for now
-	double dx = this->_cellSize_;
+	double dx = this->getMinCellSize();
 	// Note: fluidDensity and other densities are the same, though their variables should be different
 	double scale = t / (fluidDensity * dx);
 	// scale must be dynamic
@@ -663,7 +663,7 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 			//this->_A_->coeffRef(cell->id(), numFluidNeighbors) = 1;
 			this->_A_->coeffRef(cell->id(), cell->id()) = -numNonSolidNeighbors;
 			// cell height should be set in constructor, set this. while it should be 1, we don't want to hardcode it.
-			int voxelSize = this->_cellSize_; // this is h
+			int voxelSize = this->getMinCellSize(); // this is h
 			// NaN divide by zero like this t here? 
 			this->_b_->coeffRef(cell->id()) = (double)((((fluidDensity * voxelSize) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
 		}
