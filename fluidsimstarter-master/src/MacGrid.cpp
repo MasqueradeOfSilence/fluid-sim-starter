@@ -265,6 +265,7 @@ void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 	//use conjugate gradient for the matrix solve
 	Eigen::ConjugateGradient<Eigen::SparseMatrix<double> > cg;
 	cg.compute(*this->_A_);
+	//cout << "solve with b: " << *this->_b_ << endl;
 	*this->_p_ = cg.solve(*this->_b_);
 	double h = 1;
 
@@ -308,41 +309,81 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 
 			double ux = cell->u()[0];
 			double uy = cell->u()[1];
+			if (cell->type() == AIR && leftNeighbor != NULL && leftNeighbor->type() == FLUID)
+			{
+				ux -= scale * (atmP - this->_p_->coeffRef(leftNeighbor->id()));
+			}
+			else if (cell->type() == FLUID && leftNeighbor != NULL && leftNeighbor->type() == AIR)
+			{
+				ux -= scale * (this->_p_->coeffRef(cell->id()) - atmP);
+				if (ux != 0)
+				{
+					//cout << " die 2" << endl;
+					//cout << "cell id: " << cell->id() << endl;
+					//// Cells are set to UNUSED when they should be fluids. It seems like they're getting set one step too late. 
+					//// relabelFluidCells
+					//// issue: This is NaN. It's tricky because that's where C++ libraries come in...
+					//cout << "the P: " << this->_p_->coeffRef(cell->id()) << endl;
+				}
+			}
+			else if (cell->type() == FLUID && leftNeighbor != NULL && leftNeighbor->type() == FLUID)
+			{
+				ux -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(leftNeighbor->id()));
+			}
 
-			// CASE: Fluid | Air
-			if (rightNeighbor != NULL && rightNeighbor->type() == AIR && cell->type() == FLUID)
+			if (cell->type() == AIR && downNeighbor != NULL && downNeighbor->type() == FLUID)
 			{
-				// we could set Ux and Uy, then use updateU() only at the end. and in this case, make the default just the current U (unchanged).
-				//cell->updateU(cell->u()[0] - (scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()))), 0.5);
-				ux = cell->u()[0] - (scale * (atmP - this->_p_->coeffRef(rightNeighbor->id())));
+				uy -= scale * (atmP - this->_p_->coeffRef(downNeighbor->id()));
 			}
-			// CASE: Air | Fluid
-			else if (leftNeighbor != NULL && leftNeighbor->type() == FLUID && cell->type() == AIR)
+			else if (cell->type() == FLUID && downNeighbor != NULL && downNeighbor->type() == AIR)
 			{
-				//cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP)), 0.5);
-				ux = cell->u()[0] - (scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP));
+				uy -= scale * (this->_p_->coeffRef(cell->id()) - atmP);
 			}
-			// CASE: Fluid | Fluid
-			else if (rightNeighbor != NULL && rightNeighbor->type() == FLUID && cell->type() == FLUID)
+			else if (cell->type() == FLUID && downNeighbor != NULL && downNeighbor->type() == FLUID)
 			{
-				//cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id()))), 0.5);
-				ux = cell->u()[0] - (scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id())));
+				uy -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(downNeighbor->id()));
 			}
-			// CASE: Fluid above Air
-			if (downNeighbor != NULL && downNeighbor->type() == AIR && cell->type() == FLUID)
+			if (ux != 0)
 			{
-				uy = cell->u()[1] - (scale * (atmP - this->_p_->coeffRef(downNeighbor->id())));
+				//cout << "Ux: " << ux << endl;
+				//cout << "Uy: " << uy << endl;
+				// scale is just 1. it's probably P...
+				//system("pause");
 			}
-			// CASE: Air above Fluid
-			else if (upNeighbor != NULL && upNeighbor->type() == AIR && cell->type() == FLUID)
-			{
-				uy = cell->u()[1] - (scale * (this->_p_->coeffRef(upNeighbor->id()) - atmP));
-			}
-			// CASE: Fluid above Fluid
-			else if (downNeighbor != NULL && downNeighbor->type() == FLUID && cell->type() == FLUID)
-			{
-				uy = cell->u()[1] - (scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(downNeighbor->id())));
-			}
+			//// CASE: Fluid | Air
+			//if (rightNeighbor != NULL && rightNeighbor->type() == AIR && cell->type() == FLUID)
+			//{
+			//	// we could set Ux and Uy, then use updateU() only at the end. and in this case, make the default just the current U (unchanged).
+			//	//cell->updateU(cell->u()[0] - (scale * (atmP - this->_p_->coeffRef(rightNeighbor->id()))), 0.5);
+			//	ux = cell->u()[0] - (scale * (atmP - this->_p_->coeffRef(rightNeighbor->id())));
+			//}
+			//// CASE: Air | Fluid
+			//else if (leftNeighbor != NULL && leftNeighbor->type() == FLUID && cell->type() == AIR)
+			//{
+			//	//cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP)), 0.5);
+			//	ux = cell->u()[0] - (scale * (this->_p_->coeffRef(leftNeighbor->id()) - atmP));
+			//}
+			//// CASE: Fluid | Fluid
+			//else if (rightNeighbor != NULL && rightNeighbor->type() == FLUID && cell->type() == FLUID)
+			//{
+			//	//cell->updateU(cell->u()[0] - (scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id()))), 0.5);
+			//	ux = cell->u()[0] - (scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(rightNeighbor->id())));
+			//}
+			//// CASE: Fluid above Air
+			//if (downNeighbor != NULL && downNeighbor->type() == AIR && cell->type() == FLUID)
+			//{
+			//	uy = cell->u()[1] - (scale * (atmP - this->_p_->coeffRef(downNeighbor->id())));
+			//}
+			//// CASE: Air above Fluid
+			//else if (upNeighbor != NULL && upNeighbor->type() == AIR && cell->type() == FLUID)
+			//{
+			//	uy = cell->u()[1] - (scale * (this->_p_->coeffRef(upNeighbor->id()) - atmP));
+			//}
+			//// CASE: Fluid above Fluid
+			//else if (downNeighbor != NULL && downNeighbor->type() == FLUID && cell->type() == FLUID)
+			//{
+			//	uy = cell->u()[1] - (scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(downNeighbor->id())));
+			//}
 			cell->updateU(ux, uy);
 		}
 	}
@@ -620,14 +661,23 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 	this->relabelFluidCells();
 	GridCell* cell, * neighbor;
 	GridCell* neighbors[4];
+	int numLoops = 0;
+	int numPoops = 0;
 	// 13x26 with b size 338
 	for (int i = 0; i < this->_width_; ++i)
 	{
 		for (int j = 0; j < this->_height_; ++j)
 		{
 			cell = this->cellAt(i, j);
+			numLoops++;
 			if (cell == NULL || cell->type() != FLUID)
 			{
+				//cout << "cell type: " << cell->type() << endl;
+				//cout << "cell id: " << cell->id() << endl;
+				// any cell with type UNUSED always has an ID of zero. Some initialization thing never ran. 
+				// thus, we get garbage values in b, due to this CONTINUE
+				// because we are seeing fluid cells FAIL here. they are set to UNUSED when they should be FLUID. 
+				numPoops++;
 				continue;
 			}
 			// After calling this, the result will be stored in neighbors
@@ -650,10 +700,25 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 				{
 					numAirNeighbors++;
 				}
+				if (neighbor != NULL && neighbor->type() != FLUID)
+				{
+					this->_A_->coeffRef(cell->id(), neighbor->id()) = 0;
+				}
 			}
 			this->_A_->coeffRef(cell->id(), cell->id()) = -numNonSolidNeighbors;
 			int voxelSize = this->getMinCellSize(); // this is h
 			this->_b_->coeffRef(cell->id()) = (double)((((fluidDensity * voxelSize) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
+			//cout << "le magic: " << this->_b_->coeffRef(cell->id()) << endl;
+			//cout << "le size: " << this->_b_->size() << endl;
 		}
 	}
+	//for (int i = 0; i < this->_b_->size(); i++) 
+	//{
+	//	if (this->_b_->coeffRef(i) < -10000)
+	//	{
+	//		this->_b_->coeffRef(i) = 0;
+	//	}
+	//}
+	//cout << "num loop " << numLoops << endl;
+	//cout << "num poop " << numPoops << endl;
 }
