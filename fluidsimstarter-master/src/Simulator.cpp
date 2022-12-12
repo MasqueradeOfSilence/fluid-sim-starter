@@ -45,7 +45,8 @@ void Simulator::run(int frames)
 		if (frame < EMIT_FRAMES)
 			this->addParticles(PARTICLES_PER_FRAME);
 
-		// For Macbook coding with g++ compiler
+		// For Macbook coding with g++ compiler: g++ -o sim *.cpp
+		// (inside of src folder)
 		string grid_path = GRIDS_PATH;
 		#if __APPLE__
 			grid_path = "/Users/Alex/Documents/Alex's Crap/Escuela/MS/Fall_2022/fluid-sim-data/grids/grid.%03d";
@@ -108,7 +109,6 @@ void Simulator::advectParticles(double t)
 		this->_grid_->traceParticle(p->pos()[0], p->pos()[1], t, newPos);
 		p->updatePos(newPos[0], newPos[1]);
 	}
-	int bogus = 0;
 }
 
 void Simulator::serializeGrids(int frame, const string path)

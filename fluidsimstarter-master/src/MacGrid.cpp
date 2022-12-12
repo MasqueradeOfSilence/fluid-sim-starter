@@ -267,8 +267,6 @@ void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 	cg.compute(*this->_A_);
 	//cout << "calling cg.solve with the following b: " << *this->_b_ << endl;
 	*this->_p_ = cg.solve(*this->_b_);
-	double h = 1;
-
 }
 
 /*
@@ -292,93 +290,78 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 	GridCell* rightNeighbor;
 	GridCell* downNeighbor;
 	GridCell* neighbors[4];
-	double dx = this->getMinCellSize();
+	double dx = this->_cellSize_;
 	// Note: fluidDensity and other densities are the same, though their variables should be different
 	double scale = t / (fluidDensity * dx);
-	Eigen::Vector2d previous;
 	for (int i = 0; i < _width_; ++i)
 	{
 		for (int j = 0; j < _height_; ++j)
 		{
 			cell = this->cellAt(i, j);
+			// should not see UNUSED at this point. 
 			if (cell == NULL || cell->type() == UNUSED)
 			{
 				continue;
 			}
 			this->getNeighbors(i, j, neighbors);
 			leftNeighbor = neighbors[0];
-			upNeighbor = neighbors[1];
-			rightNeighbor = neighbors[2];
-			downNeighbor = neighbors[3];
+			downNeighbor = neighbors[1];
+			//rightNeighbor = neighbors[2];
+			//upNeighbor = neighbors[3];
 
 			double ux = cell->u()[0];
 			double uy = cell->u()[1];
-			if (cell->type() == AIR && leftNeighbor != NULL && leftNeighbor->type() == FLUID)
+			// One of them has to be fluid, and neither of them can be solid.
+			// Add this.
+			// if left neighbor not null.
+			// Then, check if one is air.
+			// we are the right cell.
+			// same applies for up/down
+			// pressure left - pressure right.
+			// he uses (*this->p)[cell->id]
+
+			if (leftNeighbor != NULL)
 			{
-				// band-aid, not correct
-				// 
-				//if (isnan(this->_p_->coeffRef(leftNeighbor->id())))
-				//{
-				//	continue;
-				//}
-				ux -= scale * (atmP - this->_p_->coeffRef(leftNeighbor->id()));
-			}
-			else if (cell->type() == FLUID && leftNeighbor != NULL && leftNeighbor->type() == AIR)
-			{
-				//if (isnan(this->_p_->coeffRef(cell->id())))
-				//{
-				//	continue;
-				//}
-				ux -= scale * (this->_p_->coeffRef(cell->id()) - atmP);
-				if (ux != 0)
+				if (cell->type() == FLUID || leftNeighbor->type() == FLUID)
 				{
-					//cout << " die 2" << endl;
-					//cout << "cell id: " << cell->id() << endl;
-					//// Cells are set to UNUSED when they should be fluids. It seems like they're getting set one step too late. 
-					//// relabelFluidCells
-					//// issue: This is NaN. It's tricky because that's where C++ libraries come in...
-					//cout << "the P: " << this->_p_->coeffRef(cell->id()) << endl;
+					if (cell->type() != SOLID && leftNeighbor->type() != SOLID)
+					{
+						if (cell->type() == AIR && leftNeighbor->type() == FLUID)
+						{
+							ux -= scale * (atmP - (*this->_p_)[leftNeighbor->id()]);
+						}
+						else if (cell->type() == FLUID && leftNeighbor->type() == AIR)
+						{
+							ux -= scale * ((*this->_p_)[cell->id()] - atmP);
+						}
+						else if (cell->type() == FLUID && leftNeighbor->type() == FLUID)
+						{
+							ux -= scale * ((*this->_p_)[cell->id()] - (*this->_p_)[leftNeighbor->id()]);
+						}
+					}
 				}
 			}
-			else if (cell->type() == FLUID && leftNeighbor != NULL && leftNeighbor->type() == FLUID)
+			
+			if (downNeighbor != NULL)
 			{
-				//if (isnan(this->_p_->coeffRef(leftNeighbor->id())) || isnan(this->_p_->coeffRef(cell->id())))
-				//{
-				//	continue;
-				//}
-				ux -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(leftNeighbor->id()));
-			}
-
-			if (cell->type() == AIR && downNeighbor != NULL && downNeighbor->type() == FLUID)
-			{
-				//if (isnan(this->_p_->coeffRef(downNeighbor->id())))
-				//{
-				//	continue;
-				//}
-				uy -= scale * (atmP - this->_p_->coeffRef(downNeighbor->id()));
-			}
-			else if (cell->type() == FLUID && downNeighbor != NULL && downNeighbor->type() == AIR)
-			{
-				//if (isnan(this->_p_->coeffRef(cell->id())))
-				//{
-				//	continue;
-				//}
-				uy -= scale * (this->_p_->coeffRef(cell->id()) - atmP);
-			}
-			else if (cell->type() == FLUID && downNeighbor != NULL && downNeighbor->type() == FLUID)
-			{
-				//if (isnan(this->_p_->coeffRef(downNeighbor->id())) || isnan(this->_p_->coeffRef(cell->id())))
-				//{
-				//	continue;
-				//}
-				uy -= scale * (this->_p_->coeffRef(cell->id()) - this->_p_->coeffRef(downNeighbor->id()));
-			}
-			if (ux != 0)
-			{
-				//cout << "Ux: " << ux << endl;
-				//cout << "Uy: " << uy << endl;
-				// scale is just 1. it's probably P...
-				//system("pause");
+				if (cell->type() == FLUID || downNeighbor->type() == FLUID)
+				{
+					if (cell->type() != SOLID && downNeighbor->type() != SOLID)
+					{
+						if (cell->type() == AIR && downNeighbor->type() == FLUID)
+						{
+							uy -= scale * (atmP - (*this->_p_)[downNeighbor->id()]);
+						}
+						else if (cell->type() == FLUID && downNeighbor->type() == AIR)
+						{
+							uy -= scale * ((*this->_p_)[cell->id()] - atmP);
+						}
+						else if (cell->type() == FLUID && downNeighbor->type() == FLUID)
+						{
+							uy -= scale * ((*this->_p_)[cell->id()] - (*this->_p_)[downNeighbor->id()]);
+						}
+					}
+				}
 			}
 			cell->updateU(ux, uy);
 		}
@@ -655,6 +638,8 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 	cout << "buildPressureMatrix: CUSTOM IMPLEMENTATION" << endl;
 	// We need to give the cells IDs so that they will work properly in Eigen
 	this->relabelFluidCells();
+	this->_A_->setZero();
+	this->_b_->setZero();
 	GridCell* cell, * neighbor;
 	GridCell* neighbors[4];
 	// 13x26 with b size 338
@@ -683,22 +668,18 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 				{
 					numNonSolidNeighbors++;
 				}
-				if (neighbor != NULL && neighbor->type() == FLUID)
+				else if (neighbor != NULL && neighbor->type() == FLUID)
 				{
-					this->_A_->coeffRef(cell->id(), neighbor->id()) = 1;
+					this->_A_->insert(cell->id(), neighbor->id()) = 1;
 				}
 				else if (neighbor != NULL && neighbor->type() == AIR)
 				{
 					numAirNeighbors++;
 				}
-				if (neighbor != NULL && neighbor->type() != FLUID)
-				{
-					this->_A_->coeffRef(cell->id(), neighbor->id()) = 0;
-				}
 			}
-			this->_A_->coeffRef(cell->id(), cell->id()) = -numNonSolidNeighbors;
-			int voxelSize = this->getMinCellSize(); // this is h
-			this->_b_->coeffRef(cell->id()) = (double)((((fluidDensity * voxelSize) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
+			this->_A_->insert(cell->id(), cell->id()) = -numNonSolidNeighbors;
+			//int voxelSize = this->getMinCellSize(); // this is h
+			(*this->_b_)[cell->id()] = (double)((((fluidDensity * this->_cellSize_) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
 		}
 	}
 }
