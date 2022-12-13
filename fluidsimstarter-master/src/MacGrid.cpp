@@ -288,9 +288,8 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 	GridCell* leftNeighbor;
 	GridCell* downNeighbor;
 	GridCell* neighbors[4];
-	double dx = this->_cellSize_;
-	// Note: fluidDensity and other densities are the same, though their variables should be different
-	double scale = t / (fluidDensity * dx);
+	// Note: fluidDensity and other densities are the same at 1.0, though their variables should be different
+	double scale = t / (fluidDensity * this->_cellSize_);
 	for (int i = 0; i < this->_width_; ++i)
 	{
 		for (int j = 0; j < this->_height_; ++j)
@@ -655,7 +654,7 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 				{
 					numNonSolidNeighbors++;
 				}
-				else if (neighbor != NULL && neighbor->type() == FLUID)
+				if (neighbor != NULL && neighbor->type() == FLUID)
 				{
 					this->_A_->insert(cell->id(), neighbor->id()) = 1;
 				}
@@ -666,7 +665,7 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 			}
 			this->_A_->insert(cell->id(), cell->id()) = -numNonSolidNeighbors;
 			//int voxelSize = this->getMinCellSize(); // this is h
-			(*this->_b_)[cell->id()] = (double)((scale * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
+			(*this->_b_)[cell->id()] = ((scale * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
 		}
 	}
 }
