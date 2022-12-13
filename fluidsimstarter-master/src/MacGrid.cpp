@@ -286,19 +286,17 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 	cout << "applying pressure: CUSTOM IMPLEMENTATION" << endl;
 	GridCell* cell;
 	GridCell* leftNeighbor;
-	GridCell* upNeighbor;
-	GridCell* rightNeighbor;
 	GridCell* downNeighbor;
 	GridCell* neighbors[4];
 	double dx = this->_cellSize_;
 	// Note: fluidDensity and other densities are the same, though their variables should be different
 	double scale = t / (fluidDensity * dx);
-	for (int i = 0; i < _width_; ++i)
+	for (int i = 0; i < this->_width_; ++i)
 	{
-		for (int j = 0; j < _height_; ++j)
+		for (int j = 0; j < this->_height_; ++j)
 		{
 			cell = this->cellAt(i, j);
-			// should not see UNUSED at this point. 
+			// should not see UNUSED at this point. But it's OK to have it here.
 			if (cell == NULL || cell->type() == UNUSED)
 			{
 				continue;
@@ -306,19 +304,11 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 			this->getNeighbors(i, j, neighbors);
 			leftNeighbor = neighbors[0];
 			downNeighbor = neighbors[1];
-			//rightNeighbor = neighbors[2];
-			//upNeighbor = neighbors[3];
 
 			double ux = cell->u()[0];
 			double uy = cell->u()[1];
-			// One of them has to be fluid, and neither of them can be solid.
-			// Add this.
-			// if left neighbor not null.
-			// Then, check if one is air.
-			// we are the right cell.
-			// same applies for up/down
-			// pressure left - pressure right.
-			// he uses (*this->p)[cell->id]
+			// we are the right cell, and the top cell.
+			// left minus right, or right minus left? and up vs. down? 
 
 			if (leftNeighbor != NULL)
 			{
@@ -328,15 +318,15 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 					{
 						if (cell->type() == AIR && leftNeighbor->type() == FLUID)
 						{
-							ux -= scale * (atmP - (*this->_p_)[leftNeighbor->id()]);
+							ux -= (scale * (atmP - (*this->_p_)[leftNeighbor->id()]));
 						}
 						else if (cell->type() == FLUID && leftNeighbor->type() == AIR)
 						{
-							ux -= scale * ((*this->_p_)[cell->id()] - atmP);
+							ux -= (scale * ((*this->_p_)[cell->id()] - atmP));
 						}
 						else if (cell->type() == FLUID && leftNeighbor->type() == FLUID)
 						{
-							ux -= scale * ((*this->_p_)[cell->id()] - (*this->_p_)[leftNeighbor->id()]);
+							ux -= (scale * ((*this->_p_)[cell->id()] - (*this->_p_)[leftNeighbor->id()]));
 						}
 					}
 				}
@@ -350,15 +340,15 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 					{
 						if (cell->type() == AIR && downNeighbor->type() == FLUID)
 						{
-							uy -= scale * (atmP - (*this->_p_)[downNeighbor->id()]);
+							uy -= (scale * (atmP - (*this->_p_)[downNeighbor->id()]));
 						}
 						else if (cell->type() == FLUID && downNeighbor->type() == AIR)
 						{
-							uy -= scale * ((*this->_p_)[cell->id()] - atmP);
+							uy -= (scale * ((*this->_p_)[cell->id()] - atmP));
 						}
 						else if (cell->type() == FLUID && downNeighbor->type() == FLUID)
 						{
-							uy -= scale * ((*this->_p_)[cell->id()] - (*this->_p_)[downNeighbor->id()]);
+							uy -= (scale * ((*this->_p_)[cell->id()] - (*this->_p_)[downNeighbor->id()]));
 						}
 					}
 				}
@@ -642,6 +632,7 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 	this->_b_->setZero();
 	GridCell* cell, * neighbor;
 	GridCell* neighbors[4];
+	double scale = ((fluidDensity * this->_cellSize_) / t);
 	// 13x26 with b size 338
 	for (int i = 0; i < this->_width_; ++i)
 	{
@@ -650,10 +641,6 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 			cell = this->cellAt(i, j);
 			if (cell == NULL || cell->type() != FLUID)
 			{
-				//cout << "cell type: " << cell->type() << endl;
-				//cout << "cell id: " << cell->id() << endl;
-				// any cell with type UNUSED always has an ID of zero. Did we init properly?
-				// could this be causing the garbage in B? 
 				continue;
 			}
 			// After calling this, the result will be stored in neighbors
@@ -679,7 +666,7 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 			}
 			this->_A_->insert(cell->id(), cell->id()) = -numNonSolidNeighbors;
 			//int voxelSize = this->getMinCellSize(); // this is h
-			(*this->_b_)[cell->id()] = (double)((((fluidDensity * this->_cellSize_) / t) * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
+			(*this->_b_)[cell->id()] = (double)((scale * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
 		}
 	}
 }
