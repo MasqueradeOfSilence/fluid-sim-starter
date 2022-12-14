@@ -279,7 +279,7 @@ void MacGrid::solvePressure(double t, double fluidDensity, double atmP)
 	Air | Fluid
 	Fluid | Fluid
 
-	I and J (horizontal and vertical)
+	For both I and J (horizontal and vertical)
 */
 void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 {
@@ -288,14 +288,14 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 	GridCell* leftNeighbor;
 	GridCell* downNeighbor;
 	GridCell* neighbors[4];
-	// Note: fluidDensity and other densities are the same at 1.0, though their variables should be different
+	// Note: fluidDensity and other densities are the same at 1.0, though their variables should ideally be different
 	double scale = t / (fluidDensity * this->_cellSize_);
 	for (int i = 0; i < this->_width_; ++i)
 	{
 		for (int j = 0; j < this->_height_; ++j)
 		{
 			cell = this->cellAt(i, j);
-			// should not see UNUSED at this point. But it's OK to have it here.
+			// should not see UNUSED at this point. Can just test for NULL in future
 			if (cell == NULL || cell->type() == UNUSED)
 			{
 				continue;
@@ -307,7 +307,6 @@ void MacGrid::applyPressure(double t, double fluidDensity, double atmP)
 			double ux = cell->u()[0];
 			double uy = cell->u()[1];
 			// we are the right cell, and the top cell.
-			// left minus right, or right minus left? and up vs. down? 
 
 			if (leftNeighbor != NULL)
 			{
@@ -653,18 +652,17 @@ void MacGrid::buildPressureMatrix(double t, double fluidDensity, double atmP)
 				if (neighbor != NULL && neighbor->type() != SOLID && neighbor->type() != UNUSED)
 				{
 					numNonSolidNeighbors++;
-				}
-				if (neighbor != NULL && neighbor->type() == FLUID)
-				{
-					this->_A_->insert(cell->id(), neighbor->id()) = 1;
-				}
-				else if (neighbor != NULL && neighbor->type() == AIR)
-				{
-					numAirNeighbors++;
+					if (neighbor != NULL && neighbor->type() == FLUID)
+					{
+						this->_A_->insert(cell->id(), neighbor->id()) = 1;
+					}
+					else if (neighbor != NULL && neighbor->type() == AIR)
+					{
+						numAirNeighbors++;
+					}
 				}
 			}
 			this->_A_->insert(cell->id(), cell->id()) = -numNonSolidNeighbors;
-			//int voxelSize = this->getMinCellSize(); // this is h
 			(*this->_b_)[cell->id()] = ((scale * this->getDivergence(i, j)) - (numAirNeighbors * atmP));
 		}
 	}
